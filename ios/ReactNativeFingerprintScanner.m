@@ -15,7 +15,7 @@ RCT_EXPORT_METHOD(isSensorAvailable: (RCTResponseSenderBlock)callback)
     LAContext *context = [[LAContext alloc] init];
     NSError *error;
 
-    if ([context canEvaluatePolicy:LAPolicyDeviceOwnerAuthenticationWithBiometrics error:&error]) {
+    if ([context canEvaluatePolicy:LAPolicyDeviceOwnerAuthentication error:&error]) {
         callback(@[[NSNull null], [self getBiometryType:context]]);
     } else {
         NSString *code;
