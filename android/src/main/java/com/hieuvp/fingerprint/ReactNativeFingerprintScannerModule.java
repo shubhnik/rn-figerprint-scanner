@@ -84,7 +84,10 @@ public class ReactNativeFingerprintScannerModule
         @Override
         public void onAuthenticationError(int errorCode, @NonNull CharSequence errString) {
             super.onAuthenticationError(errorCode, errString);
-            this.promise.reject(biometricPromptErrName(errorCode), TYPE_BIOMETRICS);
+            if(errorCode!=BiometricPrompt.ERROR_CANCELED) {
+                // Do not reject the promise since this is triggered when user uses fallback password
+                this.promise.reject(biometricPromptErrName(errorCode), TYPE_BIOMETRICS);
+            }
         }
 
         @Override
@@ -126,7 +129,7 @@ public class ReactNativeFingerprintScannerModule
                     BiometricPrompt bioPrompt = getBiometricPrompt(fragmentActivity, promise);
 
                     PromptInfo promptInfo = new BiometricPrompt.PromptInfo.Builder()
-                        .setDeviceCredentialAllowed(false)
+                        .setDeviceCredentialAllowed(true)
                         .setConfirmationRequired(false)
                         .setNegativeButtonText(cancelButton)
                         .setDescription(description)
@@ -142,8 +145,6 @@ public class ReactNativeFingerprintScannerModule
     // the below constants are consistent across BiometricPrompt and BiometricManager
     private String biometricPromptErrName(int errCode) {
         switch (errCode) {
-            case BiometricPrompt.ERROR_CANCELED:
-                return "SystemCancel";
             case BiometricPrompt.ERROR_HW_NOT_PRESENT:
                 return "FingerprintScannerNotSupported";
             case BiometricPrompt.ERROR_HW_UNAVAILABLE:
