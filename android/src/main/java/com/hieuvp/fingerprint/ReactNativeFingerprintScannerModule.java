@@ -238,7 +238,6 @@ public class ReactNativeFingerprintScannerModule
         } else {
             final String errorName = getSensorError();
             if (errorName != null) {
-//                promise.reject(errorName, TYPE_BIOMETRICS);
                 deviceLockAuthenticate(description, errorName, promise);
                 ReactNativeFingerprintScannerModule.this.release();
                 return;
