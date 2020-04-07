@@ -1,17 +1,22 @@
 package com.hieuvp.fingerprint;
 
+import android.app.Activity;
+import android.app.KeyguardManager;
+import android.content.Context;
+import android.content.Intent;
 import android.os.Build;
+
 import androidx.annotation.NonNull;
 import androidx.biometric.BiometricPrompt;
 import androidx.biometric.BiometricManager;
-import androidx.biometric.BiometricPrompt.AuthenticationCallback;
 import androidx.biometric.BiometricPrompt.PromptInfo;
 import androidx.fragment.app.FragmentActivity;
 
 import java.util.concurrent.Executor;
-import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 
+import com.facebook.react.bridge.ActivityEventListener;
+import com.facebook.react.bridge.BaseActivityEventListener;
 import com.facebook.react.bridge.LifecycleEventListener;
 import com.facebook.react.bridge.Promise;
 import com.facebook.react.bridge.ReactApplicationContext;
@@ -27,15 +32,15 @@ import com.wei.android.lib.fingerprintidentify.base.BaseFingerprint.ExceptionLis
 import com.wei.android.lib.fingerprintidentify.base.BaseFingerprint.IdentifyListener;
 
 
-@ReactModule(name="ReactNativeFingerprintScanner")
+@ReactModule(name = "ReactNativeFingerprintScanner")
 public class ReactNativeFingerprintScannerModule
         extends ReactContextBaseJavaModule
-        implements LifecycleEventListener
-{
+        implements LifecycleEventListener {
     public static final int MAX_AVAILABLE_TIMES = Integer.MAX_VALUE;
     public static final String TYPE_BIOMETRICS = "Biometrics";
     public static final String TYPE_FINGERPRINT_LEGACY = "Fingerprint";
 
+    private static final int KEYGUARD_REQUEST = 420;
     private final ReactApplicationContext mReactContext;
     private BiometricPrompt biometricPrompt;
 
@@ -84,7 +89,7 @@ public class ReactNativeFingerprintScannerModule
         @Override
         public void onAuthenticationError(int errorCode, @NonNull CharSequence errString) {
             super.onAuthenticationError(errorCode, errString);
-            if(errorCode!=BiometricPrompt.ERROR_CANCELED) {
+            if (errorCode != BiometricPrompt.ERROR_CANCELED) {
                 // Do not reject the promise since this is triggered when user uses fallback password
                 this.promise.reject(biometricPromptErrName(errorCode), TYPE_BIOMETRICS);
             }
@@ -109,9 +114,9 @@ public class ReactNativeFingerprintScannerModule
         AuthCallback authCallback = new AuthCallback(promise);
         Executor executor = Executors.newSingleThreadExecutor();
         biometricPrompt = new BiometricPrompt(
-            fragmentActivity,
-            executor,
-            authCallback
+                fragmentActivity,
+                executor,
+                authCallback
         );
 
         return biometricPrompt;
@@ -193,15 +198,48 @@ public class ReactNativeFingerprintScannerModule
         return null;
     }
 
+
+    private void deviceLockAuthenticate(String description, String errorName, final Promise promise) {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
+            KeyguardManager keyguardManager = (KeyguardManager) mReactContext.getSystemService(Context.KEYGUARD_SERVICE);
+            if (keyguardManager.isDeviceSecure()) {
+                final ActivityEventListener mActivityEventListener = new BaseActivityEventListener() {
+                    @Override
+                    public void onActivityResult(Activity activity, int requestCode, int resultCode, Intent intent) {
+                        if (requestCode != KEYGUARD_REQUEST)
+                            return;
+                        if (resultCode == Activity.RESULT_OK) {
+                            promise.resolve(true);
+                        } else {
+                            promise.reject("KEYGUARD_AUTHENTICATION_FAILED", "Keyguard");
+                        }
+                    }
+                };
+
+                mReactContext.addActivityEventListener(mActivityEventListener);
+                Intent intent = keyguardManager.createConfirmDeviceCredentialIntent(description, "");
+                if (intent != null) {
+                    mReactContext.startActivityForResult(intent, KEYGUARD_REQUEST, null);
+                }
+            }
+            else{
+                promise.reject("KEYGUARD_NOT_SET", "Keyguard");
+            }
+        } else {
+            promise.reject(errorName, TYPE_BIOMETRICS);
+        }
+
+    }
+
     @ReactMethod
     public void authenticate(String title, String subtitle, String description, String cancelButton, final Promise promise) {
         if (requiresLegacyAuthentication()) {
             legacyAuthenticate(promise);
-        }
-        else {
+        } else {
             final String errorName = getSensorError();
             if (errorName != null) {
-                promise.reject(errorName, TYPE_BIOMETRICS);
+//                promise.reject(errorName, TYPE_BIOMETRICS);
+                deviceLockAuthenticate(description, errorName, promise);
                 ReactNativeFingerprintScannerModule.this.release();
                 return;
             }
@@ -256,12 +294,12 @@ public class ReactNativeFingerprintScannerModule
         mFingerprintIdentify = new FingerprintIdentify(mReactContext);
         mFingerprintIdentify.setSupportAndroidL(true);
         mFingerprintIdentify.setExceptionListener(
-            new ExceptionListener() {
-                @Override
-                public void onCatchException(Throwable exception) {
-                    mReactContext.removeLifecycleEventListener(ReactNativeFingerprintScannerModule.this);
+                new ExceptionListener() {
+                    @Override
+                    public void onCatchException(Throwable exception) {
+                        mReactContext.removeLifecycleEventListener(ReactNativeFingerprintScannerModule.this);
+                    }
                 }
-            }
         );
         mFingerprintIdentify.init();
         return mFingerprintIdentify;
@@ -309,7 +347,7 @@ public class ReactNativeFingerprintScannerModule
 
             @Override
             public void onFailed(boolean isDeviceLocked) {
-                if(isDeviceLocked){
+                if (isDeviceLocked) {
                     promise.reject("AuthenticationFailed", "DeviceLocked");
                 } else {
                     promise.reject("AuthenticationFailed", TYPE_FINGERPRINT_LEGACY);
