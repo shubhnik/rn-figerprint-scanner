@@ -1,3 +1,13 @@
+# NOTICE FOR THIS FORK
+
+This is forked from https://github.com/hieuvp/react-native-fingerprint-scanner
+
+How does it differ?
+1. Support fallbacks to device pin, pattern or passcode for iOS & Android
+2. If biometrics is not enrolled/available, use device pin, pattern or passcode for iOS & Android
+
+Philosphy behind the fork: _Authenticate using whatever means_
+
 # React Native Fingerprint Scanner
 
 [![React Native Version](https://img.shields.io/badge/react--native-latest-blue.svg?style=flat-square)](http://facebook.github.io/react-native/releases)
