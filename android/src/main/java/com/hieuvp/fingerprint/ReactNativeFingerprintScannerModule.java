@@ -221,8 +221,7 @@ public class ReactNativeFingerprintScannerModule
                 if (intent != null) {
                     mReactContext.startActivityForResult(intent, KEYGUARD_REQUEST, null);
                 }
-            }
-            else{
+            } else {
                 promise.reject("KEYGUARD_NOT_SET", "Keyguard");
             }
         } else {
